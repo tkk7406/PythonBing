@@ -4,15 +4,18 @@ from datetime import datetime
 import pytz
 import os.path
 import piexif
+from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
 
 
 def main():
-    imgPath = "C:/Users/Aristo/Downloads/BingWallpaper-" + getDate() + ".jpg"
+    imgPath = "C:/Users/Aristo/Desktop/BingWallpaper-" + getDate() + ".jpg"
     if os.path.isfile(imgPath) == False:
         urlretrieve(getImage(), imgPath)
         imgInfo = {270: getDescription(), 315: getAuthor()}
         imgData = piexif.dump({"0th":imgInfo})
         piexif.insert(imgData, imgPath)
+    goPrevDay()
 
 def getImage():
     imgDiv = parsePage().select_one("div.img_cont")
@@ -37,6 +40,12 @@ def parsePage():
 def getDate():
     uk = pytz.timezone('Europe/London')
     return str(datetime.now(uk).date())
+
+def goPrevDay():
+    browser = webdriver.Chrome()
+    browser.get("https://www.bing.com/?cc=gb#")
+    back = browser.find_element_by_id("leftNav")
+    back.click()
 
 if __name__ == "__main__":
     main()
