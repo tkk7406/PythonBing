@@ -6,16 +6,19 @@ import os.path
 import piexif
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 def main():
-    imgPath = "C:/Users/Aristo/Desktop/BingWallpaper-" + getDate() + ".jpg"
+    imgPath = "C:/Users/Aristo/Downloads/BingWallpaper-" + getDate() + ".jpg"
     if os.path.isfile(imgPath) == False:
         urlretrieve(getImage(), imgPath)
         imgInfo = {270: getDescription(), 315: getAuthor()}
         imgData = piexif.dump({"0th":imgInfo})
         piexif.insert(imgData, imgPath)
-    goPrevDay()
+    goPrevDay(3)
 
 def getImage():
     imgDiv = parsePage().select_one("div.img_cont")
@@ -31,7 +34,7 @@ def getAuthor():
     return authDiv.text.split("© ")[1]
 
 def parsePage():
-    source = "https://www.bing.com/?cc=gb"
+    source = "https://www.bing.com/?cc=gb#"
     client = urlopen(source)
     page = client.read()
     client.close()
@@ -41,11 +44,19 @@ def getDate():
     uk = pytz.timezone('Europe/London')
     return str(datetime.now(uk).date())
 
-def goPrevDay():
+def goPrevDay(day):
+    x = 0
     browser = webdriver.Chrome()
     browser.get("https://www.bing.com/?cc=gb#")
-    back = browser.find_element_by_id("leftNav")
-    back.click()
+    while x < day:
+        back = WebDriverWait(browser, 10).until(EC.element_to_be_clickable((By.ID, "leftNav")))
+        back.click()
+        x += 1
+    html = browser.page_source
+    imgExt = html.split("background-image: url(")[1].split("&amp;rf")[0]
+    imgLink = "https://bing.com" + imgExt.split("&quot;")[1]
+    print(imgLink)
+    return imgLink
 
 if __name__ == "__main__":
     main()
