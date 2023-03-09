@@ -10,6 +10,8 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+
 
 
 def main():
@@ -19,15 +21,18 @@ def main():
             page = parsePrevPage(x)
             print(getPrevPath(x) + " doesn't exist")
             urlretrieve(getPrevImage(page), getPrevPath(x))
+            print(getPrevDescription(page) + " by " + getPrevAuthor(page))
             imgInfo = {270: getPrevDescription(page), 315: getPrevAuthor(page)}
             imgData = piexif.dump({"0th":imgInfo})
             piexif.insert(imgData, getPrevPath(x))
         x -= 1
-    #currentImgPath = "C:/Users/Aristo/Downloads/BingWallpaper-" + str(getCurrentDate()) + ".jpg"
     currentImgPath = "C:/Users/Aristo/Downloads/BingWallpaper-" + str(getCurrentDate()) + ".jpg"
     if os.path.isfile(currentImgPath) == False:
-        urlretrieve(getCurrentImage(), currentImgPath)
-        imgInfo = {270: getCurrentDescription(), 315: getCurrentAuthor()}
+        page = parseCurrentPage()
+        print(currentImgPath + " doesn't exist")
+        urlretrieve(getCurrentImage(page), currentImgPath)
+        print(getCurrentDescription(page) + " by " + getCurrentAuthor(page))
+        imgInfo = {270: getCurrentDescription(page), 315: getCurrentAuthor(page)}
         imgData = piexif.dump({"0th":imgInfo})
         piexif.insert(imgData, currentImgPath)
 
@@ -35,25 +40,30 @@ def getCurrentDate():
     uk = pytz.timezone('Europe/London')
     return datetime.now(uk).date()
 
-def getCurrentImage():
-    imgDiv = parseCurrentPage().select_one("div.img_cont")
-    imgLink = "https://bing.com" + imgDiv['style'].split("url(")[1].split(")")[0]
+def getCurrentImage(source):
+    imgLink = "https://bing.com" + source.split('"Image":{"Url":"')[1].split("\\")[0]
     return imgLink
 
-def getCurrentDescription():
-    descDiv = parseCurrentPage().select_one("a.title")
-    return descDiv.text
+def getCurrentDescription(source):
+    descDiv = source.split('"Title":"')[1].split('","')[0]
+    return descDiv
 
-def getCurrentAuthor():
-    authDiv = parseCurrentPage().select_one("div.copyright")
-    return authDiv.text.split("© ")[1]
+def getCurrentAuthor(source):
+    authDiv = source.split('"Copyright":"© ')[1].split('","')[0]
+    return authDiv
 
 def parseCurrentPage():
-    source = "https://www.bing.com/?cc=gb"
-    client = urlopen(source)
-    page = client.read()
-    client.close()
-    return beausoup(page, "html.parser")
+    arg = webdriver.ChromeOptions()
+    arg.add_argument('--ignore-certificate-errors')
+    browser = webdriver.Chrome(ChromeDriverManager().install())
+    browser.maximize_window()
+    browser.get("https://www.bing.com/?cc=gb")
+    #img = WebDriverWait(browser, 30).until(EC.element_to_be_clickable((By.LINK_TEXT, "Want to see the Bing daily image?")))
+    #browser.implicitly_wait(1)
+    #img.click()
+    source = browser.page_source
+    browser.close()
+    return source
 
 def getPrevPath(day):
     date = str(getCurrentDate() - timedelta(days=day))
@@ -70,25 +80,30 @@ def getPrevImage(source):
     return imgLink
 
 def getPrevDescription(source):
-    desc = source.split('"title">')[1].split("</a>")[0]
-    print(desc)
+    desc = source.split('Image of the day: ')[1].split('"')[0]
     return desc
 
 def getPrevAuthor(source):
-    auth = source.split('"copyright">© ')[1].split("</div>")[0]
+    auth = source.split('copyright">© ')[1].split('</div>')[0]
     return auth
 
 def parsePrevPage(day):
     arg = webdriver.ChromeOptions()
     arg.add_argument('--ignore-certificate-errors')
-    browser = webdriver.Chrome(options=arg)
+    browser = webdriver.Chrome(ChromeDriverManager().install())
+    browser.maximize_window()
     browser.get("https://www.bing.com/?cc=gb")
+    cookie_reject = WebDriverWait(browser, 30).until(EC.element_to_be_clickable((By.ID, "bnp_btn_reject")))
+    browser.implicitly_wait(3)
+    cookie_reject.click()
+    #img = WebDriverWait(browser, 30).until(EC.element_to_be_clickable((By.LINK_TEXT, "Want to see the Bing daily image?")))
+    #browser.implicitly_wait(1)
+    #img.click()
     x = 0
     while x < day:
         back = WebDriverWait(browser, 30).until(EC.element_to_be_clickable((By.ID, "leftNav")))
-        browser.implicitly_wait(2)
+        browser.implicitly_wait(3)
         back.click()
-        #browser.execute_script("arguments[0].click();", back)
         x += 1
     source = browser.page_source
     browser.close()
